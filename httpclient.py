@@ -41,13 +41,15 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        temp = data.split()
+        return int(temp[1])
 
     def get_headers(self,data):
         return None
 
     def get_body(self, data):
-        return None
+        temp = data.split("\r\n\r\n")
+        return temp[1]
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -68,14 +70,36 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
-        return HTTPResponse(code, body)
+        if(not url.startswith("http")):
+            url="http://"+url
+        components=urllib.parse.urlparse(url)
+        host=components.hostname if components.hostname else ""
+        port=components.port if components.port else 80
+        path=components.path if components.path else "/"
+        self.connect(host,port)
+        body="GET "+path+" HTTP/1.1\r\n"+"Host: "+host+"\r\n"+"Accept: */*\r\n\r\n"
+        self.sendall(body)
+        self.socket.shutdown(socket.SHUT_WR)
+        data=self.recvall(self.socket)
+        self.close()
+        return HTTPResponse(self.get_code(data), self.get_body(data))
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
-        return HTTPResponse(code, body)
+        if(not url.startswith("http")):
+            url="http://"+url
+        components=urllib.parse.urlparse(url)
+        host=components.hostname if components.hostname else ""
+        port=components.port if components.port else 80
+        path=components.path if components.path else "/"
+        arg=urllib.parse.urlencode(args) if args else ""
+        length=len(arg) if args else 0
+        self.connect(host,port)
+        body="POST "+path+" HTTP/1.1\r\n"+"Host: "+host+"\r\n"+"Content-Type: application/x-www-form-urlencoded\r\n"+"Content-Length: "+str(length)+"\r\n" + "Accept: */*\r\n\r\n"+arg+"\r\n"
+        self.sendall(body)
+        self.socket.shutdown(socket.SHUT_WR)
+        data=self.recvall(self.socket)
+        self.close()
+        return HTTPResponse(self.get_code(data), self.get_body(data))
 
     def command(self, url, command="GET", args=None):
         if (command == "POST"):
